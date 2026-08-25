@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WHAT THE GROUND KEEPS</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #050508;
+            --text-main: #E8E8E8;
+            --stone-gray: #4A4A5A;
+            --abyss-red: #8B0000;
+            --dirty-gold: #FFB432;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'VT323', monospace;
+            overflow-x: hidden;
+        }
+
+        /* --- NAVBAR --- */
+        .navbar {
+            position: fixed;
+            top: 0; left: 0; width: 100%;
+            height: 60px;
+            background: rgba(5, 5, 8, 0.95);
+            border-bottom: 2px solid var(--stone-gray);
+            display: flex;
+            justify-content: center; /* Centered navbar title */
+            align-items: center;
+            padding: 0 40px;
+            z-index: 100;
+        }
+
+        .nav-title {
+            font-size: 1.6rem;
+            letter-spacing: 2px;
+            color: var(--text-main);
+            text-align: center;
+        }
+
+        /* --- HERO SECTION --- */
+        .hero-section {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            min-height: 650px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding-top: 60px;
+        }
+
+        #ascii-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            object-position: center bottom;
+            z-index: 1;
+        }
+
+        .scanlines {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.15));
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .ui-layer {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            padding: 20px;
+            max-width: 800px;
+        }
+
+        /* Coming Soon Animated Badge */
+        .coming-soon-badge {
+            font-size: clamp(1.2rem, 3vw, 1.8rem);
+            color: var(--dirty-gold);
+            letter-spacing: 4px;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px rgba(255, 180, 50, 0.6);
+            animation: badgePulse 1.5s infinite alternate ease-in-out;
+        }
+
+        @keyframes badgePulse {
+            0% { opacity: 0.4; transform: scale(0.98); text-shadow: 0 0 5px rgba(255, 180, 50, 0.2); }
+            100% { opacity: 1; transform: scale(1.02); text-shadow: 0 0 15px rgba(255, 180, 50, 0.8); }
+        }
+
+        .hero-headline {
+            text-align: center;
+            font-size: clamp(2rem, 5vw, 4.2rem);
+            letter-spacing: 3px;
+            color: #FFFFFF;
+            text-shadow: 3px 3px 0px var(--stone-gray);
+            margin-bottom: clamp(10px, 2vw, 20px);
+            padding: 0 10px;
+        }
+
+        .hero-subtext {
+            font-size: clamp(1rem, 2.5vw, 1.6rem);
+            color: #A0A0A0;
+            margin-bottom: clamp(20px, 3vw, 30px);
+            letter-spacing: 2px;
+            text-align: center;
+            padding: 0 10px;
+        }
+
+        /* Waitlist Container */
+        .game-panel {
+            background: rgba(12, 12, 16, 0.92);
+            border: 3px solid var(--stone-gray);
+            padding: clamp(15px, 3vw, 25px) clamp(20px, 4vw, 30px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 520px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+
+        .waitlist-form { 
+            display: flex; 
+            flex-direction: row;
+            gap: 10px; 
+            width: 100%;
+        }
+
+        .waitlist-input {
+            flex-grow: 1;
+            background: #000;
+            border: 2px solid var(--stone-gray);
+            color: #FFF;
+            font-family: 'VT323', monospace;
+            font-size: clamp(1.2rem, 2vw, 1.4rem); 
+            padding: 10px 15px; 
+            outline: none;
+            text-align: center;
+            min-width: 0;
+        }
+
+        .waitlist-input:focus { 
+            border-color: var(--dirty-gold); 
+        }
+
+        .waitlist-btn {
+            background: #151515; 
+            border: 2px solid var(--dirty-gold);
+            color: var(--dirty-gold); 
+            font-family: 'VT323', monospace;
+            font-size: clamp(1.2rem, 2vw, 1.4rem); 
+            padding: 10px 20px;
+            cursor: pointer; 
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+
+        .waitlist-btn:hover {
+            background: var(--dirty-gold);
+            color: #000;
+        }
+
+        .success-msg {
+            color: var(--dirty-gold);
+            font-size: 1.4rem;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        /* --- TRAILER SECTION --- */
+        .trailer-section {
+            position: relative;
+            z-index: 10;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 50px 20px 60px 20px;
+            border-top: 2px solid var(--stone-gray);
+        }
+
+        .trailer-wrapper {
+            width: 100%;
+            max-width: 900px;
+            background: #000;
+            padding: 10px;
+            border: 3px solid var(--stone-gray);
+            position: relative;
+        }
+
+        .trailer-label {
+            position: absolute;
+            top: -16px; 
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-color);
+            padding: 0 15px; 
+            color: var(--stone-gray); 
+            font-size: 1.3rem;
+        }
+
+        iframe {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 16/9;
+            border: none;
+            display: block;
+        }
+
+        /* --- FOOTER --- */
+        .site-footer {
+            background-color: #030305;
+            border-top: 1px solid #1a1a24;
+            padding: 30px 20px;
+            text-align: center;
+            color: #6a6a7a;
+            font-family: 'VT323', monospace;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .site-footer p {
+            margin-bottom: 8px;
+        }
+
+        @media (max-width: 600px) {
+            .waitlist-form { flex-direction: column; }
+            .waitlist-btn { width: 100%; }
+            .navbar { padding: 0 20px; height: 50px; }
+            .nav-title { font-size: 1.3rem; }
+            .hero-section { padding-top: 50px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="nav-title">WHAT THE GROUND KEEPS</div>
+    </nav>
+
+    <!-- HERO SECTION -->
+    <section class="hero-section">
+        <canvas id="ascii-canvas" width="1280" height="720"></canvas>
+        <div class="scanlines"></div>
+        
+        <div class="ui-layer">
+            <div class="coming-soon-badge">[ COMING SOON ]</div>
+            <div class="hero-headline">THE DEPTHS ARE CALLING. JOIN THE WAITLIST.</div>
+            <div class="hero-subtext">Descend into the dark before the ground takes you.</div>
+            
+            <div class="game-panel" id="waitlist-box">
+                <form class="waitlist-form" id="waitlistForm" onsubmit="handleWaitlist(event)">
+                    <input type="email" id="emailInput" class="waitlist-input" placeholder="enter your email..." required>
+                    <button type="submit" class="waitlist-btn">JOIN</button>
+                </form>
+                <div id="waitlistResponse" style="display: none;" class="success-msg"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TRAILER SECTION -->
+    <section class="trailer-section">
+        <div class="trailer-wrapper">
+            <div class="trailer-label">=== ARCHIVE FOOTAGE ===</div>
+            <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="site-footer">
+        <p>© 2026 WHAT THE GROUND KEEPS. ALL RIGHTS RESERVED.</p>
+        <p style="color: #4a4a5a;">SYS.LOG // ALL MINERS ACCOUNTED FOR.</p>
+    </footer>
+
+    <script>
+        function handleWaitlist(event) {
+            event.preventDefault();
+            const email = document.getElementById('emailInput').value;
+            const randomNum = Math.floor(Math.random() * 800) + 120;
+            
+            const form = document.getElementById('waitlistForm');
+            const responseDiv = document.getElementById('waitlistResponse');
+            
+            form.style.display = 'none';
+            responseDiv.style.display = 'block';
+            responseDiv.innerHTML = `Uplink secured. You're miner #${randomNum} in the queue.`;
+        }
+
+        const canvas = document.getElementById('ascii-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        const LOGICAL_W = 1280;
+        const LOGICAL_H = 720;
+        const CELL_W = 18;
+        const CELL_H = 28;
+
+        const sceneStr = [
+            "            &",
+            "          &&&",
+            "         &&&&&",
+            "        &&&&&&&",
+            "       &&&&&&&&&",
+            "      &&&&&&&&&&&",
+            "     &&&&&&&&&&&&&",
+            "    &&&&&&&&&&&&&&&",
+            "   &&&&&&&&&&&&&&&&&",
+            "  &&&&&&&&&&&&&&&&&&&",
+            "  &&&&&&&&&&&&&&&&&&&",
+            "   &&&&&&&&&&&&&&&&&",
+            "    &&&&&&&&&&&&&&&",
+            "         ||||||",
+            "         ||||||",
+            "         ||||||",
+            "         ||||||",
+            "         ||||||",
+            "############################################################################",
+            "############################################################################",
+            "############################################################################",
+            "############################################################################",
+            "############################################################################"
+        ];
+
+        const stars = [];
+        for(let i=0; i<200; i++) {
+            stars.push({
+                x: 20 + Math.random() * (LOGICAL_W - 40),
+                y: 30 + Math.random() * 350,
+                phase: Math.random() * Math.PI * 2,
+                bright: 0.4 + Math.random() * 0.6,
+                big: Math.random() < 0.2
+            });
+        }
+
+        const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
+
+        function drawFrame(timeMs) {
+            const time = timeMs / 1000.0; 
+            
+            ctx.fillStyle = `rgb(5, 5, 8)`;
+            ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+            
+            ctx.font = `${CELL_H - 4}px 'VT323', monospace`;
+            ctx.textBaseline = 'top';
+
+            const ORIGIN_X = 0;
+            const ORIGIN_Y = LOGICAL_H - (23 * CELL_H);
+            const groundTopY = ORIGIN_Y + 18 * CELL_H;
+
+            // Stars
+            for(let s of stars) {
+                let tw = 0.5 + 0.5 * Math.sin(time * 1.8 + s.phase);
+                ctx.fillStyle = `rgba(255, 255, 255, ${tw * s.bright})`;
+                ctx.font = `${s.big ? 16 : 12}px 'VT323', monospace`;
+                ctx.fillText(s.big ? '*' : '.', s.x, s.y);
+            }
+
+            ctx.font = `${CELL_H - 4}px 'VT323', monospace`;
+
+            const campX = ORIGIN_X + 26 * CELL_W;
+            const campY = groundTopY - CELL_H + 8;
+            const fireFlicker = (Math.sin(time * 12.0) + Math.cos(time * 7.0) + 2.0) * 0.25;
+            const fireRadius = 350.0 + fireFlicker * 60.0; // Dynamic radius for rich fire glow expansion
+
+            // Draw Scene background trees/ground with saturated vibrant fire lighting
+            for (let row = 0; row < 23; row++) {
+                const line = sceneStr[row];
+                const yPos = ORIGIN_Y + row * CELL_H;
+
+                for (let col = 0; col < line.length; col++) {
+                    const ch = line[col];
+                    if (ch === ' ') continue;
+
+                    let wx = ORIGIN_X + col * CELL_W;
+                    if (ch === '&') {
+                        let sway = Math.sin(time * 1.5 + row * 0.3 + col * 0.1) * 6.0;
+                        wx += sway;
+                    }
+
+                    // Calculate distance to camp for intense warm fire illumination
+                    let distToCamp = Math.hypot(wx - campX, yPos - campY);
+                    let campLight = clamp(1.0 - (distToCamp / fireRadius), 0.0, 1.0);
+                    campLight = Math.pow(campLight, 1.5); // Rich falloff curve
+
+                    // Saturated rich color grading for trees and ground blocks
+                    let r = 25, g = 32, b = 48;
+                    if (ch === '&') { r = 18; g = 65; b = 35; } // Saturated rich forest pine green
+                    if (ch === '|') { r = 70; g = 45; b = 25; } // Warm rich wood trunk
+                    if (ch === '#') {
+                        let depth = row - 18;
+                        r = 45 - (depth * 5); g = 35 - (depth * 5); b = 50 - (depth * 5);
+                    }
+
+                    // Add intense glowing warmth from the campfire
+                    r += campLight * 230;
+                    g += campLight * 120;
+                    b += campLight * 30;
+
+                    r = clamp(r, 0, 255); 
+                    g = clamp(g, 0, 255); 
+                    b = clamp(b, 0, 255);
+                    
+                    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                    ctx.fillText(ch, wx, yPos);
+                }
+            }
+
+            // Expanded Warm Campfire Glow Halo layer
+            let glowGrad = ctx.createRadialGradient(campX + CELL_W/2, campY + CELL_H/2, 5, campX + CELL_W/2, campY + CELL_H/2, fireRadius * 0.8);
+            glowGrad.addColorStop(0, `rgba(255, 140, 20, ${0.35 + fireFlicker * 0.1})`);
+            glowGrad.addColorStop(0.5, `rgba(200, 70, 10, ${0.15 + fireFlicker * 0.05})`);
+            glowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = glowGrad;
+            ctx.beginPath();
+            ctx.arc(campX + CELL_W/2, campY + CELL_H/2, fireRadius * 0.8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Campfire Core
+            ctx.fillStyle = `rgb(255, ${120 + fireFlicker * 135}, 10)`;
+            ctx.font = `32px 'VT323', monospace`;
+            ctx.fillText("W", campX, campY);
+            ctx.fillStyle = `#FFD700`;
+            ctx.font = `24px 'VT323', monospace`;
+            ctx.fillText("*", campX + 5, campY - 20 - (fireFlicker * 15));
+
+            // Responsive positioning scaling calculations for mobile/desktop layout adaptation
+            let isMobile = window.innerWidth <= 600;
+            let canvasSpan = isMobile ? LOGICAL_W - 100 : LOGICAL_W - 250;
+            let speedMultiplier = isMobile ? 0.35 : 0.5;
+
+            // --- @ and i slowly moving across the screen naturally ---
+            let walkCycle = (Math.sin(time * speedMultiplier) + 1.0) * 0.5; 
+            let wanderX = walkCycle * canvasSpan + 80;
+            let hopOffset = Math.abs(Math.sin(time * 6.0)) * 10.0;
+            let entityY = groundTopY - CELL_H + 2 - hopOffset;
+
+            // Hat/Indicator "^" over their heads
+            ctx.fillStyle = `#00FFCC`;
+            ctx.font = `20px 'VT323', monospace`;
+            ctx.fillText("^", wanderX + 2, entityY - 20);
+            ctx.fillText("^", wanderX + 26, entityY - 20);
+
+            // Player (@)
+            ctx.fillStyle = `#FFFFFF`;
+            ctx.font = `${CELL_H}px 'VT323', monospace`;
+            ctx.fillText("@", wanderX, entityY);
+
+            // Sibling (i) walking right beside player
+            let siblingX = wanderX + 24;
+            ctx.font = `38px 'VT323', monospace`;
+            ctx.fillText("i", siblingX, entityY - 4);
+
+            // --- Separate Heart Animation (Floating independent in the sky/trees area) ---
+            const heartAscii = [
+                "d88b  d88b",
+                "888888888888",
+                "Y8888888888Y",
+                " Y88888888Y ",
+                "  `Y8888Y`  ",
+                "   `YY`   "
+            ];
+            let heartPulse = (Math.sin(time * 4.0) + 1.0) * 0.5;
+            let heartX = isMobile ? LOGICAL_W * 0.5 : LOGICAL_W * 0.48; 
+            let heartY = 150 + Math.sin(time * 2.5) * 8.0;
+            ctx.fillStyle = `rgba(255, ${60 + heartPulse * 120}, 90, 0.9)`;
+            ctx.font = `16px 'VT323', monospace`;
+            heartAscii.forEach((line, idx) => {
+                ctx.fillText(line, heartX - 40, heartY + (idx * 15));
+            });
+
+            // --- EXACT ENEMIES ROAMING ---
+            ctx.font = `${CELL_H}px 'VT323', monospace`;
+            
+            // Spitter enemy 'v'
+            let spitterX = (time * 35) % (LOGICAL_W - 150) + 80;
+            ctx.fillStyle = `#32CD32`; 
+            ctx.fillText("v", spitterX, groundTopY - CELL_H + 2);
+
+            // Mimic trap 'm' disguised as gold '$'
+            let mimicX = isMobile ? 250 : 450;
+            ctx.fillStyle = `#FFD700`; 
+            ctx.fillText("$", mimicX, groundTopY - CELL_H + 2);
+
+            // Crawling Worm Segment 'S'
+            let wormHeadX = LOGICAL_W - ((time * 55) % LOGICAL_W);
+            ctx.fillStyle = `#FF4500`; 
+            ctx.fillText("S", wormHeadX, groundTopY - CELL_H + 2);
+            ctx.fillStyle = `#8B0000`;
+            ctx.fillText("~", wormHeadX - 18, groundTopY - CELL_H + 2);
+
+            requestAnimationFrame(drawFrame);
+        }
+
+        document.fonts.ready.then(() => {
+            requestAnimationFrame(drawFrame);
+        });
+    </script>
+</body>
+</html>
