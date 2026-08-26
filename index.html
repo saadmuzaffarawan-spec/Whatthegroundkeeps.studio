@@ -292,17 +292,61 @@
     </footer>
 
     <script>
-        function handleWaitlist(event) {
+        async function handleWaitlist(event) {
             event.preventDefault();
-            const email = document.getElementById('emailInput').value;
-            const randomNum = Math.floor(Math.random() * 800) + 120;
             
             const form = document.getElementById('waitlistForm');
+            const emailInput = document.getElementById('emailInput');
+            const submitBtn = document.querySelector('.waitlist-btn');
             const responseDiv = document.getElementById('waitlistResponse');
             
-            form.style.display = 'none';
-            responseDiv.style.display = 'block';
-            responseDiv.innerHTML = `Uplink secured. You're miner #${randomNum} in the queue.`;
+            const email = emailInput.value.trim();
+            if (!email) return;
+
+            // Loading state
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'JOINING...';
+            emailInput.disabled = true;
+            responseDiv.style.display = 'none';
+            
+            try {
+                const response = await fetch('https://ynipxef2qazvhvwhicerjcfqei0xkxin.lambda-url.us-east-1.on.aws/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email: email })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Server returned an error');
+                }
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Success state
+                    form.style.display = 'none';
+                    responseDiv.style.display = 'block';
+                    responseDiv.style.color = 'var(--dirty-gold)';
+                    responseDiv.textContent = data.message || 'Uplink secured.';
+                    emailInput.value = '';
+                } else {
+                    throw new Error('Submission failed');
+                }
+            } catch (error) {
+                // Error state
+                console.error('Waitlist error occurred.');
+                responseDiv.style.display = 'block';
+                responseDiv.style.color = 'var(--abyss-red)';
+                responseDiv.textContent = 'Failed to join waitlist. Please try again.';
+                
+                // Reset form state to allow retry
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'JOIN';
+                emailInput.disabled = false;
+                emailInput.focus();
+            }
         }
 
         const canvas = document.getElementById('ascii-canvas');
