@@ -180,7 +180,6 @@
             transform-origin: center bottom;
         }
 
-        /* THE FIRE MORPH: Squish down into a hot glowing ember line */
         .waitlist-form.morphing {
             transform: scaleY(0.05) scaleX(0.9);
             filter: brightness(1.5) drop-shadow(0 0 20px var(--neon-amber));
@@ -260,7 +259,6 @@
             overflow: hidden;
         }
 
-        /* The erupting fire burst animation */
         .achievement-box.show {
             pointer-events: auto;
             animation: fire-burst 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
@@ -272,7 +270,6 @@
             100% { opacity: 1; transform: scaleY(1) scaleX(1); background: var(--bg-card); }
         }
 
-        /* Fire Embers Inside Box */
         .achievement-box::after {
             content: '';
             position: absolute;
@@ -436,7 +433,7 @@
         }
 
         /* ---------------------------------------------------- */
-        /* BESPOKE MOSAIC GALLERY CSS FOR ALL 16 IMAGES         */
+        /* CINEMATIC 14-IMAGE MOSAIC GALLERY WITH LIGHTBOX      */
         /* ---------------------------------------------------- */
         .gallery-section {
             border-top: 1px solid var(--border-subtle);
@@ -444,46 +441,131 @@
 
         .gallery-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            grid-auto-rows: 220px;
-            gap: 1.2rem;
+            grid-template-columns: repeat(4, 1fr);
+            grid-auto-rows: 240px;
+            gap: 15px;
+            grid-auto-flow: dense;
             margin-top: 3rem;
         }
 
         .gallery-item {
+            position: relative;
             background: var(--bg-card);
             border: 1px solid var(--border-subtle);
             overflow: hidden;
-            position: relative;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            border-radius: 2px;
+            cursor: pointer;
         }
 
         .gallery-item img {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            filter: saturate(0.85) contrast(1.1) brightness(0.8);
+            /* Desaturated analog horror feel by default */
+            filter: grayscale(40%) contrast(1.1) brightness(0.7);
             transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), filter 0.4s ease;
         }
 
-        .gallery-item:hover img {
-            transform: scale(1.08);
-            filter: saturate(1.2) contrast(1.15) brightness(1.1);
+        /* Subtle glowing vignette overlay */
+        .gallery-item::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.8);
+            pointer-events: none;
+            transition: box-shadow 0.4s ease;
         }
 
-        /* Special Asymmetrical Spans to create an Indie Collage */
+        /* Desktop Hover Effects */
+        @media (hover: hover) {
+            .gallery-item:hover img {
+                transform: scale(1.08);
+                filter: grayscale(0%) contrast(1.2) brightness(1.1);
+            }
+            .gallery-item:hover::after {
+                box-shadow: inset 0 0 40px var(--crimson-glow);
+            }
+        }
+
+        /* Mobile Scroll Focus Effects (Applied via JS IntersectionObserver) */
+        .gallery-item.mobile-focus img {
+            transform: scale(1.05);
+            filter: grayscale(0%) contrast(1.2) brightness(1.1);
+        }
+        .gallery-item.mobile-focus::after {
+            box-shadow: inset 0 0 40px var(--crimson-glow);
+        }
+
+        /* Lightbox Fullscreen Viewer */
+        .lightbox {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(4, 5, 7, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .lightbox.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .lightbox img {
+            max-width: 90%;
+            max-height: 90%;
+            border: 1px solid var(--neon-amber);
+            box-shadow: 0 0 50px rgba(240, 138, 24, 0.15);
+            transform: scale(0.9);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            object-fit: contain;
+        }
+
+        .lightbox.active img {
+            transform: scale(1);
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 25px;
+            right: 35px;
+            color: var(--neon-amber);
+            font-size: 2.5rem;
+            font-weight: 300;
+            font-family: 'Space Mono', monospace;
+            cursor: pointer;
+            transition: color 0.2s, transform 0.2s;
+        }
+
+        .lightbox-close:hover {
+            color: #ffaa42;
+            transform: scale(1.1);
+        }
+
+        /* Custom Spans to create the asymmetrical collage */
+        .span-2x2 { grid-column: span 2; grid-row: span 2; }
         .span-col-2 { grid-column: span 2; }
         .span-row-2 { grid-row: span 2; }
-        .span-both { grid-column: span 2; grid-row: span 2; }
 
-        @media (max-width: 850px) {
-            .gallery-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); grid-auto-rows: 180px; }
-            .span-both { grid-column: span 1; grid-row: span 1; }
-            .span-col-2 { grid-column: span 1; }
+        @media (max-width: 900px) {
+            .gallery-grid { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 200px; }
+            .span-2x2 { grid-column: span 2; grid-row: span 2; }
+            .span-col-2 { grid-column: span 2; }
+            .span-row-2 { grid-row: span 2; }
         }
+
         @media (max-width: 500px) {
             .gallery-grid { grid-template-columns: 1fr; grid-auto-rows: 250px; }
+            .span-2x2 { grid-column: span 1; grid-row: span 1; }
+            .span-col-2 { grid-column: span 1; }
             .span-row-2 { grid-row: span 1; }
+            .lightbox-close { top: 15px; right: 20px; }
         }
 
         /* System Requirements Section */
@@ -641,57 +723,52 @@
         </div>
     </section>
 
-    <!-- 16-Image Asymmetric Mosaic Gallery Section -->
+    <!-- 14-Image Asymmetric Mosaic Gallery Section -->
     <section id="gallery" class="gallery-section container">
         <h2 class="section-title">VISUAL ARCHIVE</h2>
         <div class="gallery-grid">
-            <div class="gallery-item span-both">
-                <img src="./img0.png" alt="Featured Screenshot 0" onerror="this.style.display='none'">
-            </div>
-            <div class="gallery-item span-row-2">
-                <img src="./img1.png" alt="Screenshot 1" onerror="this.style.display='none'">
+            <!-- Carefully packed 14 items using exact paths from root -->
+            <div class="gallery-item span-2x2">
+                <img src="./img0.png" alt="Featured Screenshot" onerror="this.style.display='none'">
             </div>
             <div class="gallery-item">
-                <img src="./fire.jpg" alt="Campfire scene" onerror="this.style.display='none'">
+                <img src="./img1.png" alt="Screenshot" onerror="this.style.display='none'">
             </div>
             <div class="gallery-item span-col-2">
                 <img src="./tunnel.jpg" alt="Dark Tunnel" onerror="this.style.display='none'">
             </div>
-            <div class="gallery-item">
-                <img src="./img2.png" alt="Screenshot 2" onerror="this.style.display='none'">
+            <div class="gallery-item span-row-2">
+                <img src="./img2.png" alt="Screenshot" onerror="this.style.display='none'">
             </div>
             <div class="gallery-item span-col-2">
-                <img src="./img3.png" alt="Screenshot 3" onerror="this.style.display='none'">
-            </div>
-            <div class="gallery-item span-row-2">
-                <img src="./img4.png" alt="Screenshot 4" onerror="this.style.display='none'">
+                <img src="./img3.png" alt="Screenshot" onerror="this.style.display='none'">
             </div>
             <div class="gallery-item">
+                <img src="./img4.png" alt="Screenshot" onerror="this.style.display='none'">
+            </div>
+            <div class="gallery-item span-2x2">
                 <img src="./pumps.jpg" alt="Gas Station Pumps" onerror="this.style.display='none'">
             </div>
             <div class="gallery-item">
-                <img src="./can.jpg" alt="Gas Can" onerror="this.style.display='none'">
-            </div>
-            <div class="gallery-item span-both">
-                <img src="./img6.png" alt="Featured Screenshot 6" onerror="this.style.display='none'">
+                <img src="./img5.png" alt="Screenshot" onerror="this.style.display='none'">
             </div>
             <div class="gallery-item">
                 <img src="./room.jpg" alt="Interior Room" onerror="this.style.display='none'">
             </div>
+            <div class="gallery-item span-row-2">
+                <img src="./img6.png" alt="Screenshot" onerror="this.style.display='none'">
+            </div>
             <div class="gallery-item">
-                <img src="./img5.png" alt="Screenshot 5" onerror="this.style.display='none'">
+                <img src="./img7.png" alt="Screenshot" onerror="this.style.display='none'">
             </div>
             <div class="gallery-item span-col-2">
-                <img src="./img7.png" alt="Screenshot 7" onerror="this.style.display='none'">
-            </div>
-            <div class="gallery-item span-row-2">
-                <img src="./img8.png" alt="Screenshot 8" onerror="this.style.display='none'">
+                <img src="./img8.png" alt="Screenshot" onerror="this.style.display='none'">
             </div>
             <div class="gallery-item">
                 <img src="./logo.jpg" alt="Game Logo" onerror="this.style.display='none'">
             </div>
             <div class="gallery-item span-col-2">
-                <img src="./img9.png" alt="Screenshot 9" onerror="this.style.display='none'">
+                <img src="./img9.png" alt="Screenshot" onerror="this.style.display='none'">
             </div>
         </div>
     </section>
@@ -981,7 +1058,60 @@
         }
         animate();
 
-        // Fire Morph Animation AWS Waitlist Handler
+        // -----------------------------------------------------
+        // MOBILE SCROLL GALLERY OBSERVER & LIGHTBOX LOGIC
+        // -----------------------------------------------------
+        
+        // 1. Create Lightbox DOM elements
+        const lightbox = document.createElement('div');
+        lightbox.className = 'lightbox';
+        lightbox.innerHTML = `<div class="lightbox-close">&times;</div><img src="" alt="Fullscreen Image">`;
+        document.body.appendChild(lightbox);
+
+        const lightboxImg = lightbox.querySelector('img');
+        const galleryItems = document.querySelectorAll('.gallery-item');
+
+        // 2. Add click-to-expand functionality
+        galleryItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const img = item.querySelector('img');
+                if(img && img.src) {
+                    lightboxImg.src = img.src;
+                    lightbox.classList.add('active');
+                }
+            });
+        });
+
+        // 3. Close Lightbox on click
+        lightbox.addEventListener('click', () => {
+            lightbox.classList.remove('active');
+        });
+
+        // 4. Intersection Observer for Mobile Scroll Focus
+        const observerOptions = {
+            root: null,
+            rootMargin: '-35% 0px -35% 0px', // Triggers when the image is in the vertical center 30% of the screen
+            threshold: 0
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                // Only run automatic hover/focus effect on mobile screens
+                if(window.innerWidth <= 850) {
+                    if(entry.isIntersecting) {
+                        entry.target.classList.add('mobile-focus');
+                    } else {
+                        entry.target.classList.remove('mobile-focus');
+                    }
+                }
+            });
+        }, observerOptions);
+
+        galleryItems.forEach(item => observer.observe(item));
+
+        // -----------------------------------------------------
+        // FIRE MORPH WAITLIST BACKEND LOGIC
+        // -----------------------------------------------------
         async function handleWaitlist(event, formPrefix) {
             event.preventDefault();
             
