@@ -5,6 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
 <title>WHAT THE GROUND KEEPS — Demo Notification List</title>
 <meta name="description" content="Be the first to play What The Ground Keeps. Get notified when the free playable demo drops.">
+
+<!-- Lets the page load three.js (only when the jumpscare is prepared) -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -280,6 +290,104 @@ html, body {
   border: 1px solid var(--amber-primary);
   object-fit: contain;
 }
+
+/* Replay link inside the confirmation box */
+.replay-btn {
+  margin-top: 12px;
+  background: transparent;
+  border: 1px solid var(--border-muted);
+  color: var(--text-dim);
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.replay-btn:hover { border-color: var(--amber-primary); color: var(--amber-primary); }
+
+/* ================= JUMPSCARE OVERLAY ================= */
+.scare {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  overflow: hidden;
+  touch-action: none;
+}
+.scare.on { opacity: 1; pointer-events: auto; }
+.scare canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.scare-face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  -webkit-mask-image: radial-gradient(ellipse at 50% 42%, #000 32%, transparent 68%);
+          mask-image: radial-gradient(ellipse at 50% 42%, #000 32%, transparent 68%);
+  will-change: transform, filter;
+}
+.scare-vig {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.85) 100%);
+}
+.scare-grain {
+  position: absolute;
+  inset: -50%;
+  pointer-events: none;
+  opacity: 0.16;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  animation: grain 0.4s steps(4) infinite;
+}
+@keyframes grain {
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(-6%, 4%); }
+  50%  { transform: translate(5%, -7%); }
+  75%  { transform: translate(-4%, -3%); }
+  100% { transform: translate(3%, 6%); }
+}
+.scare-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+}
+.scare-outro {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  font-family: 'Space Mono', monospace;
+  font-size: clamp(12px, 3.4vw, 18px);
+  letter-spacing: 0.25em;
+  color: var(--amber-primary);
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+.scare-outro.show { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .scare-grain { animation: none; }
+}
 </style>
 </head>
 <body class="selection:bg-[#F08A18] selection:text-black">
@@ -377,11 +485,12 @@ html, body {
       <div id="confirmationBox" class="hidden py-3">
         <div class="rounded p-4 text-center" style="background: var(--input-bg); border: 1px solid rgba(240,138,24,0.4);">
           <p class="font-mono-spec text-xs sm:text-sm font-bold text-[#F08A18] uppercase mb-1.5">
-            YOU'RE ON THE LIST.
+            YOU’RE ON THE LIST.
           </p>
           <p class="text-xs sm:text-sm" style="color: var(--text-dim);">
             We will email your secure demo download link the moment it releases.
           </p>
+          <button type="button" class="replay-btn" onclick="playJumpscare()">↻ See him again</button>
         </div>
       </div>
 
@@ -430,6 +539,16 @@ html, body {
   <img id="lightboxImg" src="" alt="Screenshot Preview">
 </div>
 
+<!-- Jumpscare overlay (shown after a successful signup) -->
+<div id="scare" class="scare" aria-hidden="true">
+  <canvas id="scareCanvas"></canvas>
+  <img id="scareFace" class="scare-face" alt="" hidden>
+  <div class="scare-vig"></div>
+  <div class="scare-grain"></div>
+  <div id="scareFlash" class="scare-flash"></div>
+  <div id="scareOutro" class="scare-outro"></div>
+</div>
+
 <script>
 const AWS_LAMBDA_ENDPOINT = 'https://ynipxef2qazvhvwhicerjcfqei0xkxin.lambda-url.us-east-1.on.aws/';
 let currentTrafficSource = 'direct';
@@ -452,7 +571,7 @@ function toggleTheme() {
   const htmlEl = document.documentElement;
   const currentTheme = htmlEl.getAttribute('data-theme') || 'light';
   const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-  
+
   htmlEl.setAttribute('data-theme', newTheme);
   updateThemeUI(newTheme);
   localStorage.setItem('wtgk_theme', newTheme);
@@ -518,6 +637,7 @@ function initPage() {
   const rawSource = params.get('source') || params.get('utm_source') || 'direct';
   currentTrafficSource = rawSource.toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'direct';
   fetchLiveSubscriberCount();
+  schedulePrepare();
 }
 
 function openLightbox(src) {
@@ -555,6 +675,11 @@ async function handleWaitlist(event) {
     return;
   }
 
+  // Browsers only allow sound after a click, so unlock audio right here,
+  // before the network request. Also start loading the 3D model if not ready.
+  unlockAudio();
+  prepare3D();
+
   submitBtn.disabled = true;
   submitBtn.textContent = 'JOINING...';
 
@@ -576,18 +701,449 @@ async function handleWaitlist(event) {
       formWrapper.classList.add('hidden');
       confirmationBox.classList.remove('hidden');
       emailInput.value = '';
+
+      // The jumpscare covers the screen, then reveals the confirmation above.
+      setTimeout(playJumpscare, 250);
     } else {
       throw new Error();
     }
   } catch (_) {
     errorMsg.textContent = 'Connection failed. Please try again.';
-    errorMsg.classList.add('hidden');
+    errorMsg.classList.remove('hidden');
     submitBtn.disabled = false;
     submitBtn.textContent = 'NOTIFY ME WHEN THE DEMO DROPS →';
   }
 }
 
 window.addEventListener('DOMContentLoaded', initPage);
+
+/* =====================================================================
+   JUMPSCARE  — 3D model (three.js) with automatic 2D photo fallback
+   ===================================================================== */
+const SCARE = {
+  glb:   'grethnar.glb',          // compressed 3D model (1.5 MB)
+  face:  'grethnar_face.jpg',     // 2D fallback if WebGL/CDN is unavailable
+  outro: 'HE’LL SEE YOU AT THE STATION.', // text shown after the scare
+  lunge: 900,                     // ms of darkness before he lunges
+  cut:   2650,                    // ms when it cuts to black
+  end:   3200                     // ms when the overlay closes
+};
+
+let scare3DPromise = null;
+let scare3D = null;
+let scareBusy = false;
+let scareRaf = 0;
+let audioCtx = null;
+let masterGain = null;
+
+const prefersCalm = () =>
+  window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const clamp01 = x => Math.max(0, Math.min(1, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+
+/* ---------- Preloading ---------- */
+function schedulePrepare() {
+  const go = () => prepare3D();
+  if ('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 2500 });
+  else setTimeout(go, 1500);
+  const email = document.getElementById('emailInput');
+  if (email) email.addEventListener('focus', go, { once: true });
+}
+
+/* ---------- Audio (synthesised, no sound files needed) ---------- */
+function unlockAudio() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    if (!audioCtx) audioCtx = new AC();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch (_) {}
+}
+
+function playScareSound() {
+  if (!audioCtx) return;
+  const ctx = audioCtx;
+  const now = ctx.currentTime;
+
+  masterGain = ctx.createGain();
+  masterGain.gain.value = 0.7;
+  const comp = ctx.createDynamicsCompressor();
+  masterGain.connect(comp);
+  comp.connect(ctx.destination);
+
+  // Heartbeat thumps while it is still dark
+  const thump = (t, f, g) => {
+    const o = ctx.createOscillator(), gn = ctx.createGain();
+    o.frequency.setValueAtTime(f * 2, now + t);
+    o.frequency.exponentialRampToValueAtTime(f * 0.6, now + t + 0.18);
+    gn.gain.setValueAtTime(0.0001, now + t);
+    gn.gain.exponentialRampToValueAtTime(g, now + t + 0.01);
+    gn.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.26);
+    o.connect(gn); gn.connect(masterGain);
+    o.start(now + t); o.stop(now + t + 0.3);
+  };
+  thump(0.05, 55, 0.8); thump(0.28, 50, 0.6);
+  thump(0.58, 56, 0.9); thump(0.8, 50, 0.7);
+
+  // The scream: distorted detuned saws + sweeping noise + sub boom
+  const t0 = now + SCARE.lunge / 1000 - 0.02;
+  const dur = 1.9;
+
+  const curve = new Float32Array(1024);
+  for (let i = 0; i < 1024; i++) {
+    const x = i * 2 / 1024 - 1;
+    curve[i] = ((3 + 60) * x * 20 * (Math.PI / 180)) / (Math.PI + 60 * Math.abs(x));
+  }
+  const shaper = ctx.createWaveShaper();
+  shaper.curve = curve;
+  const sg = ctx.createGain();
+  sg.gain.setValueAtTime(0.0001, t0);
+  sg.gain.exponentialRampToValueAtTime(0.55, t0 + 0.03);
+  sg.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  shaper.connect(sg); sg.connect(masterGain);
+
+  const lfo = ctx.createOscillator(), lfoG = ctx.createGain();
+  lfo.frequency.value = 14; lfoG.gain.value = 30;
+  lfo.connect(lfoG);
+  [430, 436, 640, 910].forEach((f, i) => {
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(f, t0);
+    o.frequency.exponentialRampToValueAtTime(f * (i % 2 ? 1.6 : 1.35), t0 + 0.5);
+    o.frequency.exponentialRampToValueAtTime(f * 1.1, t0 + dur);
+    lfoG.connect(o.frequency);
+    o.connect(shaper);
+    o.start(t0); o.stop(t0 + dur);
+  });
+  lfo.start(t0); lfo.stop(t0 + dur);
+
+  const nBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+  const d = nBuf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  const noise = ctx.createBufferSource(); noise.buffer = nBuf;
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 2.5;
+  bp.frequency.setValueAtTime(900, t0);
+  bp.frequency.exponentialRampToValueAtTime(3200, t0 + 0.6);
+  const ng = ctx.createGain();
+  ng.gain.setValueAtTime(0.0001, t0);
+  ng.gain.exponentialRampToValueAtTime(0.9, t0 + 0.02);
+  ng.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  noise.connect(bp); bp.connect(ng); ng.connect(masterGain);
+  noise.start(t0);
+
+  const boom = ctx.createOscillator(), bg = ctx.createGain();
+  boom.frequency.setValueAtTime(75, t0);
+  boom.frequency.exponentialRampToValueAtTime(28, t0 + 0.7);
+  bg.gain.setValueAtTime(1.0, t0);
+  bg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.9);
+  boom.connect(bg); bg.connect(masterGain);
+  boom.start(t0); boom.stop(t0 + 1);
+}
+
+function stopScareSound() {
+  if (audioCtx && masterGain) {
+    try { masterGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.04); } catch (_) {}
+  }
+}
+
+/* ---------- Shared animation timeline ---------- */
+function frameState(t, calm) {
+  const L = calm ? 1300 : SCARE.lunge;
+  const s = { dist: 1.7, shake: 0, flash: 0, jaw: 0.04, key: 0.03, rim: 0, red: false };
+
+  if (calm) {
+    // Reduced-motion: slow fade-in and approach, no flash, no shake
+    const k = clamp01(t / (SCARE.cut - 200));
+    s.dist = lerp(1.5, 0.75, k * k * (3 - 2 * k));
+    s.key = 0.9 * clamp01(t / 900);
+    s.jaw = 0.12;
+    return s;
+  }
+
+  if (t < L) {
+    const k = t / L;
+    s.dist = lerp(1.7, 1.4, k);
+    s.key = (Math.random() < 0.06 + k * 0.12) ? 0.25 + Math.random() * 0.5 : 0.02;
+    return s;
+  }
+
+  const u = clamp01((t - L) / 110);
+  const e = 1 - Math.pow(1 - u, 4);
+  const after = (t - L) / 1000;
+  s.dist = lerp(1.4, 0.52, e) - Math.min(after, 1.6) * 0.03;
+  s.flash = clamp01(1 - (t - L) / 260);
+  s.shake = lerp(0.03, 0.012, clamp01((t - L) / 1400));
+  s.jaw = 0.3 + 0.12 * Math.sin(t * 0.045) + 0.1 * clamp01((t - L) / 90);
+  const strobe = Math.floor(t / 70) % 2 === 0;
+  s.key = strobe ? 1.5 : 0.2;
+  s.rim = strobe ? 0.2 : 2.2;
+  s.red = !strobe;
+  return s;
+}
+
+/* ---------- 3D scene ---------- */
+function prepare3D() {
+  if (scare3DPromise) return scare3DPromise;
+  scare3DPromise = (async () => {
+    try {
+      if (!window.WebGLRenderingContext || !window.WebAssembly) throw new Error('no webgl/wasm');
+      const THREE = await import('three');
+      const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+      const { MeshoptDecoder } = await import('three/addons/libs/meshopt_decoder.module.js');
+
+      const loader = new GLTFLoader();
+      loader.setMeshoptDecoder(MeshoptDecoder);
+      const gltf = await loader.loadAsync(SCARE.glb);
+
+      const canvas = document.getElementById('scareCanvas');
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.setClearColor(0x000000, 1);
+
+      const scene = new THREE.Scene();
+      const group = new THREE.Group();
+      const root = gltf.scene;
+      group.add(root);
+      scene.add(group);
+
+      // Normalise to a 1.75 m person standing on y = 0
+      root.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(root);
+      const s = 1.75 / (box.max.y - box.min.y);
+      group.scale.setScalar(s);
+      group.position.y = -box.min.y * s;
+      group.updateMatrixWorld(true);
+
+      // Material clean-up
+      root.traverse(o => {
+        if (!o.isMesh) return;
+        o.frustumCulled = false;
+        if (!o.material) {
+          // untextured mesh in the file = the glasses frame
+          o.material = new THREE.MeshStandardMaterial({ color: 0x8a8566, metalness: 0.8, roughness: 0.35 });
+          return;
+        }
+        const m = o.material;
+        if (m.transparent && !/eyes/i.test(o.name)) {
+          m.transparent = false;
+          m.alphaTest = 0.35;
+          m.depthWrite = true;
+        }
+        m.needsUpdate = true;
+      });
+
+      const findBone = n => root.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(n));
+      const head = findBone('head'), jaw = findBone('jaw');
+      const eyeL = findBone('eye.L'), eyeR = findBone('eye.R');
+
+      // Lower the T-pose arms a little (only visible in the dark opening shot)
+      const V3 = THREE.Vector3, Q = THREE.Quaternion;
+      const dropArm = side => {
+        const up = findBone('upperarm01.' + side), wr = findBone('wrist.' + side);
+        if (!up || !wr) return;
+        root.updateMatrixWorld(true);
+        const a = wr.getWorldPosition(new V3()).sub(up.getWorldPosition(new V3())).normalize();
+        const target = a.clone().multiplyScalar(0.55).add(new V3(0, -0.85, 0)).normalize();
+        const qw = new Q().setFromUnitVectors(a, target);
+        const pq = up.parent.getWorldQuaternion(new Q());
+        up.quaternion.copy(pq.clone().invert().multiply(qw).multiply(pq).multiply(up.quaternion));
+      };
+      dropArm('L'); dropArm('R');
+      root.updateMatrixWorld(true);
+
+      // Work out which way the face points, and where the eyes are
+      const up = new V3(0, 1, 0);
+      const headPos = head.getWorldPosition(new V3());
+      const eyesPos = (eyeL && eyeR)
+        ? eyeL.getWorldPosition(new V3()).add(eyeR.getWorldPosition(new V3())).multiplyScalar(0.5)
+        : headPos.clone().add(new V3(0, 0.07, 0.08));
+      const fwd = eyesPos.clone().sub(headPos); fwd.y = 0; fwd.normalize();
+      if (!isFinite(fwd.x)) fwd.set(0, 0, 1);
+      const side = new V3().crossVectors(up, fwd).normalize();
+      const jawAxis = new V3().crossVectors(up, fwd).normalize();   // opens chin downward
+      const target = eyesPos.clone().add(new V3(0, -0.012, 0));
+
+      // Rest poses for the bones we animate
+      const headRest = head.quaternion.clone();
+      const jawRest = jaw ? jaw.quaternion.clone() : null;
+      const headPQ = head.parent.getWorldQuaternion(new Q());
+      const headPQi = headPQ.clone().invert();
+      const jawPQ = jaw ? jaw.parent.getWorldQuaternion(new Q()) : null;
+      const jawPQi = jaw ? jawPQ.clone().invert() : null;
+
+      // Camera + lights
+      const cam = new THREE.PerspectiveCamera(32, 1, 0.05, 20);
+      scene.add(new THREE.HemisphereLight(0x334455, 0x000000, 0.18));
+      const keyL = new THREE.PointLight(0xdfeedd, 0, 0, 2);
+      keyL.position.copy(target).addScaledVector(fwd, 0.75).add(new V3(0, -0.28, 0));
+      scene.add(keyL);
+      const rimL = new THREE.PointLight(0xff1a1a, 0, 0, 2);
+      rimL.position.copy(target).addScaledVector(side, 0.5).addScaledVector(fwd, -0.3).add(new V3(0, 0.1, 0));
+      scene.add(rimL);
+
+      const qYaw = new Q(), qPitch = new Q(), qRoll = new Q(), qTmp = new Q(), qJaw = new Q();
+
+      const api = {
+        resize() {
+          const w = window.innerWidth, h = window.innerHeight;
+          renderer.setSize(w, h, false);
+          cam.aspect = w / h;
+          cam.updateProjectionMatrix();
+        },
+        render(st, jit) {
+          cam.position.copy(target).addScaledVector(fwd, st.dist);
+          cam.position.x += (Math.random() - 0.5) * st.shake;
+          cam.position.y += (Math.random() - 0.5) * st.shake;
+          cam.position.z += (Math.random() - 0.5) * st.shake;
+          cam.up.set(0, 1, 0);
+          cam.lookAt(target);
+          cam.rotateZ((Math.random() - 0.5) * st.shake * 1.6);
+
+          keyL.intensity = st.key;
+          rimL.intensity = st.rim;
+
+          // head twitch (world-space deltas converted to the bone's local space)
+          qYaw.setFromAxisAngle(up, jit.yaw);
+          qPitch.setFromAxisAngle(jawAxis, jit.pitch);
+          qRoll.setFromAxisAngle(fwd, jit.roll);
+          qTmp.copy(qYaw).multiply(qPitch).multiply(qRoll);
+          head.quaternion.copy(headPQi).multiply(qTmp).multiply(headPQ).multiply(headRest);
+
+          if (jaw) {
+            qJaw.setFromAxisAngle(jawAxis, st.jaw);
+            jaw.quaternion.copy(jawPQi).multiply(qJaw).multiply(jawPQ).multiply(jawRest);
+          }
+          renderer.render(scene, cam);
+        },
+        reset() {
+          head.quaternion.copy(headRest);
+          if (jaw) jaw.quaternion.copy(jawRest);
+        }
+      };
+
+      api.resize();
+      api.render(frameState(0, false), { yaw: 0, pitch: 0, roll: 0 });  // warm up shaders
+      scare3D = api;
+      return api;
+    } catch (err) {
+      console.warn('3D jumpscare unavailable, using 2D fallback.', err);
+      return null;
+    }
+  })();
+  return scare3DPromise;
+}
+
+/* ---------- Play ---------- */
+async function playJumpscare() {
+  if (scareBusy) return;
+  scareBusy = true;
+
+  const calm = prefersCalm();
+  const overlay = document.getElementById('scare');
+  const canvas = document.getElementById('scareCanvas');
+  const face = document.getElementById('scareFace');
+  const flash = document.getElementById('scareFlash');
+  const outro = document.getElementById('scareOutro');
+
+  // Use the 3D version if it is ready (wait briefly if still loading)
+  const api = scare3D || await Promise.race([
+    prepare3D(),
+    new Promise(r => setTimeout(() => r(null), 1500))
+  ]);
+
+  const use3D = !!api;
+  canvas.style.display = use3D ? 'block' : 'none';
+  face.hidden = use3D;
+  if (!use3D) face.src = SCARE.face;
+
+  outro.textContent = SCARE.outro;
+  outro.classList.remove('show');
+  flash.style.opacity = 0;
+  if (use3D) api.resize();
+
+  const prevOverflow = document.body.style.overflow;
+  document.body.style.overflow = 'hidden';
+  overlay.classList.add('on');
+  overlay.setAttribute('aria-hidden', 'false');
+
+  unlockAudio();
+  if (!calm) playScareSound();
+
+  const jit = { yaw: 0, pitch: 0, roll: 0 };
+  const jitTarget = { yaw: 0, pitch: 0, roll: 0 };
+  let lastJit = 0, outroShown = false;
+  const t0 = performance.now();
+  const lungeAt = calm ? 1300 : SCARE.lunge;
+
+  const finish = () => {
+    cancelAnimationFrame(scareRaf);
+    stopScareSound();
+    overlay.classList.remove('on');
+    overlay.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = prevOverflow;
+    overlay.removeEventListener('click', skip);
+    document.removeEventListener('keydown', onKey);
+    setTimeout(() => { if (use3D) api.reset(); outro.classList.remove('show'); scareBusy = false; }, 250);
+  };
+  const skip = () => { if (performance.now() - t0 > lungeAt + 600) finish(); };
+  const onKey = e => { if (e.key === 'Escape') skip(); };
+  overlay.addEventListener('click', skip);
+  document.addEventListener('keydown', onKey);
+
+  const tick = () => {
+    const t = performance.now() - t0;
+    if (t >= SCARE.end) { finish(); return; }
+
+    if (t >= SCARE.cut) {
+      // Hard cut to black, then the closing line
+      if (!outroShown) {
+        outroShown = true;
+        outro.classList.add('show');
+        flash.style.opacity = 0;
+      }
+      scareRaf = requestAnimationFrame(tick);
+      return;
+    }
+
+    const st = frameState(t, calm);
+
+    if (!calm && t - lastJit > 70 && t > lungeAt) {
+      lastJit = t;
+      jitTarget.yaw = (Math.random() - 0.5) * 0.5;
+      jitTarget.pitch = (Math.random() - 0.5) * 0.28;
+      jitTarget.roll = (Math.random() - 0.5) * 0.3;
+    }
+    jit.yaw = lerp(jit.yaw, jitTarget.yaw, 0.5);
+    jit.pitch = lerp(jit.pitch, jitTarget.pitch, 0.5);
+    jit.roll = lerp(jit.roll, jitTarget.roll, 0.5);
+
+    if (use3D) {
+      api.render(st, jit);
+    } else {
+      // 2D fallback: the face render zooms in and shakes
+      const sc = 0.8 * Math.pow(1 / st.dist, 0.6);
+      const dx = (Math.random() - 0.5) * st.shake * 900;
+      const dy = (Math.random() - 0.5) * st.shake * 900;
+      const rot = (Math.random() - 0.5) * st.shake * 40;
+      face.style.transform = `translate(${dx}px, ${dy}px) rotate(${rot}deg) scale(${sc})`;
+      const bright = Math.min(1.2, 0.12 + st.key * 0.7);
+      face.style.filter = `brightness(${bright}) contrast(1.15)${st.red ? ' sepia(1) saturate(6) hue-rotate(-30deg)' : ''}`;
+    }
+
+    if (st.flash > 0) {
+      flash.style.background = st.flash > 0.5 ? '#fff' : '#d00';
+      flash.style.opacity = st.flash;
+    } else {
+      flash.style.opacity = 0;
+    }
+
+    scareRaf = requestAnimationFrame(tick);
+  };
+  scareRaf = requestAnimationFrame(tick);
+}
+
+window.addEventListener('resize', () => { if (scare3D) scare3D.resize(); });
 </script>
 </body>
 </html>
